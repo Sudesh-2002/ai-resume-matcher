@@ -10,6 +10,7 @@ const multer = require('multer');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const resumeRoutes = require('./routes/resumeRoutes');
+const jobRoutes = require('./routes/jobRoutes');
 
 connectDB();
 
@@ -22,6 +23,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/resumes', resumeRoutes);
+app.use('/api/jobs', jobRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
