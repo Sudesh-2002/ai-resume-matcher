@@ -1,6 +1,7 @@
 const fs = require('fs');
 const Resume = require('../models/Resume');
 const extractPdfText = require('../utils/extractPdfText');
+const extractResumeData = require('../utils/extractResumeData');
 
 // POST /api/resumes/upload
 const uploadResume = async (req, res) => {
@@ -106,4 +107,58 @@ const deleteResume = async (req, res) => {
   }
 };
 
-module.exports = { uploadResume, getUserResumes, getResumeById, deleteResume };
+// POST /api/resumes/:id/extract
+const extractStructuredData = async (req, res) => {
+  try {
+    const resume = await Resume.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!resume) {
+      return res.status(404).json({ status: 'error', message: 'Resume not found' });
+    }
+
+    if (!resume.rawText) {
+      return res.status(400).json({ status: 'error', message: 'No raw text found for this resume' });
+    }
+
+    console.log(`Extracting structured data for resume ${resume._id}...`);
+
+    const structuredData = await extractResumeData(resume.rawText);
+
+    // Save structured data back to the resume document
+    resume.structuredData = structuredData;
+    await resume.save();
+
+    res.json({
+      status: 'ok',
+      message: 'Structured data extracted successfully',
+      resume: {
+        id: resume._id,
+        originalFileName: resume.originalFileName,
+        structuredData: resume.structuredData,
+      },
+    });
+  } catch (error) {
+    console.error('Extraction error:', error.stack);
+
+    // Handle JSON parse failure from LLM
+    if (error instanceof SyntaxError) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'LLM returned invalid JSON. Try again.',
+      });
+    }
+
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+module.exports = {
+  uploadResume,
+  getUserResumes,
+  getResumeById,
+  deleteResume,
+  extractStructuredData,
+};
