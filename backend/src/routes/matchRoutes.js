@@ -5,6 +5,7 @@ const {
   getUserMatches,
   getMatchById,
   analyzeMatch,
+  deleteMatch,
 } = require('../controllers/matchController');
 
 const router = express.Router();
@@ -15,5 +16,6 @@ router.post('/', matchResumeToJob);
 router.post('/:id/analyze', analyzeMatch);
 router.get('/', getUserMatches);
 router.get('/:id', getMatchById);
+router.delete('/:id', deleteMatch);
 
 module.exports = router;

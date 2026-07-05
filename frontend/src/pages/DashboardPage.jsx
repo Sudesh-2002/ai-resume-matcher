@@ -5,7 +5,7 @@ import { getResumes, uploadResume, extractResume, embedResume, deleteResume } fr
 import { getJobs, createJob, extractJob, embedJob, deleteJob } from '../api/jobs';
 import { createMatch, getMatches } from '../api/match';
 import toast from 'react-hot-toast';
-import { Upload, Briefcase, Zap, LogOut, Trash2, FileText } from 'lucide-react';
+import { Upload, Briefcase, Zap, LogOut, Trash2, FileText, History } from 'lucide-react';
 import MatchCard from '../components/MatchCard';
 
 export default function DashboardPage() {
@@ -144,12 +144,20 @@ export default function DashboardPage() {
           <h1 className="text-lg font-bold text-white">AI Resume Matcher</h1>
           <p className="text-gray-400 text-xs">Welcome, {user?.name}</p>
         </div>
-        <button
-          onClick={() => { logoutUser(); navigate('/login'); }}
-          className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors"
-        >
-          <LogOut size={16} /> Logout
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/history')}
+            className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors"
+          >
+            <History size={16} /> History
+          </button>
+          <button
+            onClick={() => { logoutUser(); navigate('/login'); }}
+            className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors"
+          >
+            <LogOut size={16} /> Logout
+          </button>
+        </div>
       </header>
 
       {/* Tabs */}

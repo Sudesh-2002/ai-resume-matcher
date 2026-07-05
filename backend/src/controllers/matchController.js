@@ -242,9 +242,29 @@ const analyzeMatch = async (req, res) => {
   }
 };
 
+// DELETE /api/match/:id
+const deleteMatch = async (req, res) => {
+  try {
+    const match = await MatchResult.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!match) {
+      return res.status(404).json({ status: 'error', message: 'Match not found' });
+    }
+
+    await match.deleteOne();
+    res.json({ status: 'ok', message: 'Match deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 module.exports = {
   matchResumeToJob,
   getUserMatches,
   getMatchById,
   analyzeMatch,
+  deleteMatch,
 };
