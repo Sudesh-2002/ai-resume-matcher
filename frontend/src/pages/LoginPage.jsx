@@ -12,7 +12,17 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+
+    if (!form.email.includes('@')) {
+      toast.error('Please enter a valid email');
+      return;
+    }
+    if (form.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+  setLoading(true);
     try {
       const res = await login(form);
       loginUser(res.data.user, res.data.token);
