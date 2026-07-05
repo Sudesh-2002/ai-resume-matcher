@@ -2,6 +2,7 @@ const Resume = require('../models/Resume');
 const JobDescription = require('../models/JobDescription');
 const MatchResult = require('../models/MatchResult');
 const { generateEmbedding, resumeToText } = require('../utils/generateEmbedding');
+const generateGapAnalysis = require('../utils/generateGapAnalysis');
 
 // Calculate skill overlap between resume and job
 const calculateSkillScore = (resumeSkills, requiredSkills, preferredSkills) => {
@@ -193,4 +194,57 @@ const cosineSimilarity = (vecA, vecB) => {
   return dotProduct / (magnitudeA * magnitudeB);
 };
 
-module.exports = { matchResumeToJob, getUserMatches, getMatchById };
+// POST /api/match/:id/analyze
+const analyzeMatch = async (req, res) => {
+  try {
+    const match = await MatchResult.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    })
+      .populate('resume')
+      .populate('jobDescription');
+
+    if (!match) {
+      return res.status(404).json({ status: 'error', message: 'Match not found' });
+    }
+
+    console.log(`Generating gap analysis for match ${match._id}...`);
+
+    const gapAnalysis = await generateGapAnalysis({
+      resumeData: match.resume.structuredData,
+      jobData: match.jobDescription.structuredData,
+      matchedSkills: match.matchedSkills,
+      missingSkills: match.missingSkills,
+      overallMatchPercentage: match.overallMatchPercentage,
+    });
+
+    match.gapAnalysis = gapAnalysis;
+    await match.save();
+
+    res.json({
+      status: 'ok',
+      message: 'Gap analysis generated successfully',
+      match: {
+        id: match._id,
+        resumeFile: match.resume.originalFileName,
+        jobTitle: match.jobDescription.title,
+        jobCompany: match.jobDescription.company,
+        overallMatchPercentage: match.overallMatchPercentage,
+        similarityScore: match.similarityScore,
+        matchedSkills: match.matchedSkills,
+        missingSkills: match.missingSkills,
+        gapAnalysis: match.gapAnalysis,
+      },
+    });
+  } catch (error) {
+    console.error('Gap analysis error:', error.stack);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+module.exports = {
+  matchResumeToJob,
+  getUserMatches,
+  getMatchById,
+  analyzeMatch,
+};
