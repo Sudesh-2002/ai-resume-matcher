@@ -2,6 +2,7 @@ const fs = require('fs');
 const Resume = require('../models/Resume');
 const extractPdfText = require('../utils/extractPdfText');
 const extractResumeData = require('../utils/extractResumeData');
+const { generateEmbedding, resumeToText } = require('../utils/generateEmbedding');
 
 // POST /api/resumes/upload
 const uploadResume = async (req, res) => {
@@ -155,10 +156,57 @@ const extractStructuredData = async (req, res) => {
   }
 };
 
+// POST /api/resumes/:id/embed
+const generateResumeEmbedding = async (req, res) => {
+  try {
+    const resume = await Resume.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!resume) {
+      return res.status(404).json({ status: 'error', message: 'Resume not found' });
+    }
+
+    const { skills, experience, education, summary } = resume.structuredData;
+    const hasData = skills.length > 0 || experience.length > 0 || education.length > 0;
+
+    if (!hasData) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Resume has no structured data. Run /extract first.',
+      });
+    }
+
+    console.log(`Generating embedding for resume ${resume._id}...`);
+
+    const text = resumeToText(resume.structuredData);
+    const embedding = await generateEmbedding(text);
+
+    resume.embedding = embedding;
+    await resume.save();
+
+    res.json({
+      status: 'ok',
+      message: 'Resume embedding generated successfully',
+      resume: {
+        id: resume._id,
+        originalFileName: resume.originalFileName,
+        embeddingDimensions: embedding.length,
+        embeddingPreview: embedding.slice(0, 5),
+      },
+    });
+  } catch (error) {
+    console.error('Resume embedding error:', error.stack);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 module.exports = {
   uploadResume,
   getUserResumes,
   getResumeById,
   deleteResume,
   extractStructuredData,
+  generateResumeEmbedding,
 };

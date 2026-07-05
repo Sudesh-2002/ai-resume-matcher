@@ -7,6 +7,7 @@ const {
   getResumeById,
   deleteResume,
   extractStructuredData,
+  generateResumeEmbedding,
 } = require('../controllers/resumeController');
 
 const router = express.Router();
@@ -14,7 +15,8 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/upload', upload.single('resume'), uploadResume);
-router.post('/:id/extract', extractStructuredData);  // new
+router.post('/:id/extract', extractStructuredData);
+router.post('/:id/embed', generateResumeEmbedding);
 router.get('/', getUserResumes);
 router.get('/:id', getResumeById);
 router.delete('/:id', deleteResume);

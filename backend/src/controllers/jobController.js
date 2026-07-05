@@ -1,5 +1,6 @@
 const JobDescription = require('../models/JobDescription');
 const extractJobData = require('../utils/extractJobData');
+const { generateEmbedding, jobToText } = require('../utils/generateEmbedding');
 
 // POST /api/jobs
 const createJob = async (req, res) => {
@@ -144,10 +145,57 @@ const deleteJob = async (req, res) => {
   }
 };
 
+// POST /api/jobs/:id/embed
+const generateJobEmbedding = async (req, res) => {
+  try {
+    const job = await JobDescription.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!job) {
+      return res.status(404).json({ status: 'error', message: 'Job description not found' });
+    }
+
+    const { requiredSkills, responsibilities } = job.structuredData;
+    const hasData = requiredSkills.length > 0 || responsibilities.length > 0;
+
+    if (!hasData) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Job has no structured data. Run /extract first.',
+      });
+    }
+
+    console.log(`Generating embedding for job ${job._id}...`);
+
+    const text = jobToText(job.structuredData);
+    const embedding = await generateEmbedding(text);
+
+    job.embedding = embedding;
+    await job.save();
+
+    res.json({
+      status: 'ok',
+      message: 'Job embedding generated successfully',
+      job: {
+        id: job._id,
+        title: job.title,
+        embeddingDimensions: embedding.length,
+        embeddingPreview: embedding.slice(0, 5),
+      },
+    });
+  } catch (error) {
+    console.error('Job embedding error:', error.stack);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 module.exports = {
   createJob,
   extractStructuredData,
   getUserJobs,
   getJobById,
   deleteJob,
+  generateJobEmbedding,
 };
