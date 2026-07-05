@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import HistoryPage from './pages/HistoryPage';
 
 const PrivateRoute = ({ children }) => {
   const { token } = useAuth();
@@ -24,6 +25,14 @@ export default function App() {
           }
         />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/history"
+          element={
+            <PrivateRoute>
+              <HistoryPage />
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
