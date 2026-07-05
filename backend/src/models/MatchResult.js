@@ -29,7 +29,7 @@ const matchResultSchema = new mongoose.Schema(
     missingSkills: [String],
     gapAnalysis: {
       type: String, // LLM-generated narrative feedback
-      required: true,
+      default: '',
     },
   },
   { timestamps: true }
