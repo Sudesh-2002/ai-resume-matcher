@@ -31,6 +31,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+// 404 handler for unknown routes
+app.use((req, res) => {
+  res.status(404).json({ status: 'error', message: `Route ${req.method} ${req.url} not found` });
+});
+
 // Multer error handler — must be after routes
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -42,7 +47,14 @@ app.use((err, req, res, next) => {
   if (err.message === 'Only PDF files are allowed') {
     return res.status(400).json({ status: 'error', message: err.message });
   }
-  next(err);
+
+  // Generic fallback
+  console.error('Unhandled error:', err.stack);
+  const isDev = process.env.NODE_ENV !== 'production';
+  res.status(500).json({
+    status: 'error',
+    message: isDev ? err.message : 'Internal server error',
+  });
 });
 
 const PORT = process.env.PORT || 5000;

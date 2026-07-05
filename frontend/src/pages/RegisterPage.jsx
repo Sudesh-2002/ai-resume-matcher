@@ -12,6 +12,18 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error('Name is required');
+      return;
+    }
+    if (!form.email.includes('@')) {
+      toast.error('Please enter a valid email');
+      return;
+    }
+    if (form.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
     setLoading(true);
     try {
       const res = await register(form);
