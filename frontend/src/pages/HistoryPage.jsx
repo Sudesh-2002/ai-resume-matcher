@@ -9,54 +9,69 @@ import {
 } from 'recharts';
 import {
   ArrowLeft, Trash2, ChevronDown, ChevronUp,
-  Search, SlidersHorizontal, LogOut,
+  Search, SlidersHorizontal, LogOut, Zap,
 } from 'lucide-react';
+
+function ScoreRing({ score, size = 56 }) {
+  const radius = (size / 2) - 5;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+  const color =
+    score >= 75 ? 'var(--green)' :
+    score >= 50 ? 'var(--amber)' :
+    'var(--red)';
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--border)" strokeWidth="5" />
+        <circle
+          cx={size/2} cy={size/2} r={radius}
+          fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
+          strokeDasharray={circumference}
+          className="score-ring-circle"
+          style={{ '--ring-offset': offset, filter: `drop-shadow(0 0 5px ${color}40)` }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-xs font-bold" style={{ color }}>{score}%</span>
+      </div>
+    </div>
+  );
+}
 
 export default function HistoryPage() {
   const { user, logoutUser } = useAuth();
   const navigate = useNavigate();
 
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState(null);
+  const [matches, setMatches]         = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [expandedId, setExpandedId]   = useState(null);
   const [detailCache, setDetailCache] = useState({});
-  const [deleting, setDeleting] = useState(null);
-
-  // Filter + sort state
-  const [search, setSearch] = useState('');
-  const [minScore, setMinScore] = useState(0);
-  const [sortBy, setSortBy] = useState('date_desc');
+  const [deleting, setDeleting]       = useState(null);
+  const [search, setSearch]           = useState('');
+  const [minScore, setMinScore]       = useState(0);
+  const [sortBy, setSortBy]           = useState('date_desc');
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    fetchMatches();
-  }, []);
+  useEffect(() => { fetchMatches(); }, []);
 
   const fetchMatches = async () => {
     setLoading(true);
     try {
       const res = await getMatches();
       setMatches(res.data.matches);
-    } catch {
-      toast.error('Failed to load match history');
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error('Failed to load match history'); }
+    finally { setLoading(false); }
   };
 
   const handleExpand = async (id) => {
-    if (expandedId === id) {
-      setExpandedId(null);
-      return;
-    }
+    if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
     if (!detailCache[id]) {
       try {
         const res = await getMatchById(id);
-        setDetailCache(prev => ({ ...prev, [id]: res.data.match }));
-      } catch {
-        toast.error('Failed to load match details');
-      }
+        setDetailCache(p => ({ ...p, [id]: res.data.match }));
+      } catch { toast.error('Failed to load details'); }
     }
   };
 
@@ -65,317 +80,321 @@ export default function HistoryPage() {
     try {
       await deleteMatch(id);
       toast.success('Match deleted');
-      setMatches(prev => prev.filter(m => m._id !== id));
+      setMatches(p => p.filter(m => m._id !== id));
       if (expandedId === id) setExpandedId(null);
-    } catch {
-      toast.error('Delete failed');
-    } finally {
-      setDeleting(null);
-    }
+    } catch { toast.error('Delete failed'); }
+    finally { setDeleting(null); }
   };
 
-  // Filtered + sorted matches
   const filtered = useMemo(() => {
-    let result = matches.filter(m => {
-      const jobTitle = m.jobDescription?.title?.toLowerCase() || '';
-      const fileName = m.resume?.originalFileName?.toLowerCase() || '';
-      const company = m.jobDescription?.company?.toLowerCase() || '';
+    let r = matches.filter(m => {
       const q = search.toLowerCase();
-      const matchesSearch = !q || jobTitle.includes(q) || fileName.includes(q) || company.includes(q);
-      const matchesScore = m.overallMatchPercentage >= minScore;
-      return matchesSearch && matchesScore;
+      const hit =
+        !q ||
+        m.jobDescription?.title?.toLowerCase().includes(q) ||
+        m.resume?.originalFileName?.toLowerCase().includes(q) ||
+        m.jobDescription?.company?.toLowerCase().includes(q);
+      return hit && m.overallMatchPercentage >= minScore;
     });
-
-    result.sort((a, b) => {
-      if (sortBy === 'date_desc') return new Date(b.createdAt) - new Date(a.createdAt);
-      if (sortBy === 'date_asc') return new Date(a.createdAt) - new Date(b.createdAt);
+    r.sort((a, b) => {
+      if (sortBy === 'date_desc')  return new Date(b.createdAt) - new Date(a.createdAt);
+      if (sortBy === 'date_asc')   return new Date(a.createdAt) - new Date(b.createdAt);
       if (sortBy === 'score_desc') return b.overallMatchPercentage - a.overallMatchPercentage;
-      if (sortBy === 'score_asc') return a.overallMatchPercentage - b.overallMatchPercentage;
+      if (sortBy === 'score_asc')  return a.overallMatchPercentage - b.overallMatchPercentage;
       return 0;
     });
-
-    return result;
+    return r;
   }, [matches, search, minScore, sortBy]);
 
-  const scoreColor = (score) =>
-    score >= 75 ? 'text-green-400' :
-    score >= 50 ? 'text-amber-400' :
-    'text-red-400';
+  const avg = matches.length
+    ? Math.round(matches.reduce((s, m) => s + m.overallMatchPercentage, 0) / matches.length)
+    : 0;
 
-  const scoreBg = (score) =>
-    score >= 75 ? 'bg-green-400' :
-    score >= 50 ? 'bg-amber-400' :
-    'bg-red-400';
-
-  const scoreLabel = (score) =>
-    score >= 75 ? 'Strong Match' :
-    score >= 50 ? 'Partial Match' :
-    'Weak Match';
-
-  const buildRadarData = (match) => [
-    { subject: 'Matched Skills', value: match.matchedSkills?.length || 0 },
-    { subject: 'Missing Skills', value: match.missingSkills?.length || 0 },
-    { subject: 'Similarity', value: Math.round((match.similarityScore || 0) * 10) },
-    { subject: 'Overall', value: Math.round((match.overallMatchPercentage || 0) / 10) },
-  ];
+  const strong = matches.filter(m => m.overallMatchPercentage >= 75).length;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+
       {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between px-4 lg:px-8 py-4 border-b"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="p-2 rounded-lg transition-all"
+            style={{ color: 'var(--text-2)' }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-2)'}
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-white">Match History</h1>
-            <p className="text-gray-400 text-xs">{user?.name}</p>
+            <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>Match History</h1>
+            <p className="text-xs" style={{ color: 'var(--text-3)' }}>{user?.name}</p>
           </div>
         </div>
         <button
           onClick={() => { logoutUser(); navigate('/login'); }}
-          className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors"
+          className="flex items-center gap-2 text-sm transition-all"
+          style={{ color: 'var(--text-2)' }}
         >
-          <LogOut size={16} /> Logout
+          <LogOut size={16} /> <span className="hidden sm:inline">Sign out</span>
         </button>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 lg:px-8 py-6 space-y-6">
 
-        {/* Search + filter bar */}
+        {/* Stats */}
+        {matches.length > 0 && (
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Total Matches', value: matches.length, color: 'var(--text)' },
+              { label: 'Strong Matches', value: strong, color: 'var(--green)' },
+              { label: 'Avg Score', value: `${avg}%`, color: 'var(--accent)' },
+            ].map(({ label, value, color }) => (
+              <div
+                key={label}
+                className="rounded-xl border p-4 text-center"
+                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+              >
+                <p className="text-2xl font-bold" style={{ color }}>{value}</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>{label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Search + filter */}
         <div className="space-y-3">
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <div className="flex-1 relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-3)' }} />
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 placeholder="Search by job title, company, or resume..."
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text)',
+                }}
+                onFocus={e => e.target.style.borderColor = 'var(--accent-dim)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
               />
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm border transition-colors ${
-                showFilters
-                  ? 'bg-indigo-600 border-indigo-600 text-white'
-                  : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
-              }`}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm border transition-all"
+              style={{
+                background: showFilters ? 'var(--accent-glow)' : 'var(--surface)',
+                borderColor: showFilters ? 'var(--accent-dim)' : 'var(--border)',
+                color: showFilters ? 'var(--accent)' : 'var(--text-2)',
+              }}
             >
-              <SlidersHorizontal size={16} />
-              Filters
+              <SlidersHorizontal size={15} />
+              <span className="hidden sm:inline">Filters</span>
             </button>
           </div>
 
           {showFilters && (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-400 block mb-2">
-                  Minimum Match Score: <span className="text-indigo-400 font-medium">{minScore}%</span>
+            <div
+              className="rounded-xl border p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 slide-up"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            >
+              <div className="space-y-2">
+                <label className="text-xs font-medium" style={{ color: 'var(--text-2)' }}>
+                  Min score: <span style={{ color: 'var(--accent)' }}>{minScore}%</span>
                 </label>
                 <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={minScore}
-                  onChange={(e) => setMinScore(Number(e.target.value))}
-                  className="w-full accent-indigo-500"
+                  type="range" min={0} max={100} step={5} value={minScore}
+                  onChange={e => setMinScore(Number(e.target.value))}
+                  className="w-full accent-cyan-400"
                 />
-                <div className="flex justify-between text-xs text-gray-600 mt-1">
-                  <span>0%</span>
-                  <span>50%</span>
-                  <span>100%</span>
+                <div className="flex justify-between text-xs" style={{ color: 'var(--text-3)' }}>
+                  <span>0%</span><span>50%</span><span>100%</span>
                 </div>
               </div>
-              <div>
-                <label className="text-xs text-gray-400 block mb-2">Sort By</label>
+              <div className="space-y-2">
+                <label className="text-xs font-medium" style={{ color: 'var(--text-2)' }}>Sort by</label>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  onChange={e => setSortBy(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                  style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 >
-                  <option value="date_desc">Newest First</option>
-                  <option value="date_asc">Oldest First</option>
-                  <option value="score_desc">Highest Score First</option>
-                  <option value="score_asc">Lowest Score First</option>
+                  <option value="date_desc">Newest first</option>
+                  <option value="date_asc">Oldest first</option>
+                  <option value="score_desc">Highest score first</option>
+                  <option value="score_asc">Lowest score first</option>
                 </select>
               </div>
             </div>
           )}
         </div>
 
-        {/* Summary stats */}
-        {matches.length > 0 && (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-white">{matches.length}</p>
-              <p className="text-xs text-gray-500 mt-1">Total Matches</p>
-            </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-green-400">
-                {matches.filter(m => m.overallMatchPercentage >= 75).length}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">Strong Matches</p>
-            </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-indigo-400">
-                {matches.length > 0
-                  ? Math.round(matches.reduce((s, m) => s + m.overallMatchPercentage, 0) / matches.length)
-                  : 0}%
-              </p>
-              <p className="text-xs text-gray-500 mt-1">Avg Score</p>
-            </div>
-          </div>
-        )}
-
         {/* Match list */}
         {loading ? (
-          <div className="text-center py-16 text-gray-500">Loading match history...</div>
+          <div className="space-y-3">
+            {[1,2,3].map(i => (
+              <div key={i} className="skeleton h-20 rounded-xl" />
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
-            {matches.length === 0
-              ? 'No matches yet. Run a match from the dashboard.'
-              : 'No matches found with current filters.'}
+          <div className="text-center py-16 space-y-3">
+            <Zap size={40} className="mx-auto" style={{ color: 'var(--border)' }} />
+            <p className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>
+              {matches.length === 0 ? 'No matches yet' : 'No matches with current filters'}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--text-3)' }}>
+              {matches.length === 0
+                ? 'Run a match from the dashboard to see results here.'
+                : 'Try lowering the minimum score or clearing the search.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
             {filtered.map(match => {
               const detail = detailCache[match._id];
               const isExpanded = expandedId === match._id;
+              const score = match.overallMatchPercentage;
+              const accentColor =
+                score >= 75 ? 'var(--green)' :
+                score >= 50 ? 'var(--amber)' :
+                'var(--red)';
+              const scoreLabel =
+                score >= 75 ? 'Strong' :
+                score >= 50 ? 'Partial' :
+                'Weak';
 
               return (
-                <div key={match._id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-
+                <div
+                  key={match._id}
+                  className="rounded-xl border overflow-hidden slide-up"
+                  style={{
+                    background: 'var(--surface)',
+                    borderColor: 'var(--border)',
+                    borderLeft: `3px solid ${accentColor}`,
+                  }}
+                >
                   {/* Row */}
-                  <div className="px-5 py-4 flex items-center gap-4">
-                    {/* Score circle */}
-                    <div className="shrink-0 w-14 h-14 rounded-full border-2 border-gray-700 flex flex-col items-center justify-center">
-                      <p className={`text-sm font-bold leading-none ${scoreColor(match.overallMatchPercentage)}`}>
-                        {match.overallMatchPercentage}%
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <ScoreRing score={score} size={52} />
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium text-white truncate">
+                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
                           {match.jobDescription?.title || 'Job'}
                         </p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          match.overallMatchPercentage >= 75
-                            ? 'bg-green-900/40 text-green-400'
-                            : match.overallMatchPercentage >= 50
-                            ? 'bg-amber-900/40 text-amber-400'
-                            : 'bg-red-900/40 text-red-400'
-                        }`}>
-                          {scoreLabel(match.overallMatchPercentage)}
+                        <span
+                          className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
+                          style={{
+                            background: score >= 75 ? 'var(--green-bg)' : score >= 50 ? 'var(--amber-bg)' : 'var(--red-bg)',
+                            color: accentColor,
+                          }}
+                        >
+                          {scoreLabel}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-400 truncate">
+                      <p className="text-xs truncate" style={{ color: 'var(--text-2)' }}>
                         {match.jobDescription?.company && `${match.jobDescription.company} · `}
                         {match.resume?.originalFileName}
                       </p>
-                      <div className="w-full bg-gray-800 rounded-full h-1 mt-2">
-                        <div
-                          className={`h-1 rounded-full ${scoreBg(match.overallMatchPercentage)}`}
-                          style={{ width: `${match.overallMatchPercentage}%` }}
-                        />
+                      <div className="w-full rounded-full h-1 mt-1.5" style={{ background: 'var(--border)' }}>
+                        <div className="h-1 rounded-full" style={{ width: `${score}%`, background: accentColor }} />
                       </div>
                     </div>
 
-                    {/* Date */}
-                    <p className="text-xs text-gray-600 shrink-0 hidden sm:block">
+                    <p className="text-xs shrink-0 hidden sm:block" style={{ color: 'var(--text-3)' }}>
                       {new Date(match.createdAt).toLocaleDateString()}
                     </p>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => handleDelete(match._id)}
                         disabled={deleting === match._id}
-                        className="text-gray-600 hover:text-red-400 transition-colors disabled:opacity-50"
+                        className="p-1.5 rounded-lg transition-all disabled:opacity-50"
+                        style={{ color: 'var(--text-3)' }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={14} />
                       </button>
                       <button
                         onClick={() => handleExpand(match._id)}
-                        className="text-gray-500 hover:text-white transition-colors"
+                        className="p-1.5 rounded-lg transition-all"
+                        style={{ color: 'var(--text-3)' }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
                       >
-                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </button>
                     </div>
                   </div>
 
                   {/* Expanded */}
                   {isExpanded && (
-                    <div className="border-t border-gray-800 px-5 py-5 space-y-6">
+                    <div className="border-t px-4 py-5 space-y-5" style={{ borderColor: 'var(--border)' }}>
 
                       {/* Skills */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">
-                            Matched Skills
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {match.matchedSkills?.length > 0
-                              ? match.matchedSkills.map(s => (
-                                  <span key={s} className="text-xs bg-green-900/40 text-green-400 border border-green-800 px-2 py-0.5 rounded-full">
-                                    {s}
-                                  </span>
-                                ))
-                              : <span className="text-xs text-gray-600">None</span>
-                            }
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {[
+                          { label: 'Matched Skills', items: match.matchedSkills, variant: 'matched', empty: 'None' },
+                          { label: 'Missing Skills', items: match.missingSkills, variant: 'missing', empty: 'None missing!' },
+                        ].map(({ label, items, variant, empty }) => (
+                          <div key={label} className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
+                              {label}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {items?.length > 0
+                                ? items.map(s => (
+                                    <span
+                                      key={s}
+                                      className="text-xs px-2.5 py-1 rounded-full font-medium"
+                                      style={
+                                        variant === 'matched'
+                                          ? { background: 'var(--green-bg)', color: 'var(--green)', border: '1px solid rgba(52,211,153,0.2)' }
+                                          : { background: 'var(--red-bg)', color: 'var(--red)', border: '1px solid rgba(248,113,113,0.2)' }
+                                      }
+                                    >
+                                      {s}
+                                    </span>
+                                  ))
+                                : <span className="text-xs" style={{ color: 'var(--text-3)' }}>{empty}</span>
+                              }
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">
-                            Missing Skills
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {match.missingSkills?.length > 0
-                              ? match.missingSkills.map(s => (
-                                  <span key={s} className="text-xs bg-red-900/40 text-red-400 border border-red-800 px-2 py-0.5 rounded-full">
-                                    {s}
-                                  </span>
-                                ))
-                              : <span className="text-xs text-gray-600">None missing</span>
-                            }
-                          </div>
-                        </div>
+                        ))}
                       </div>
 
-                      {/* Radar chart */}
-                      <div>
-                        <p className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">
-                          Match Breakdown
+                      {/* Radar */}
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
+                          Breakdown
                         </p>
-                        <div className="h-52">
+                        <div className="h-48">
                           <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart data={buildRadarData(match)}>
-                              <PolarGrid stroke="#374151" />
-                              <PolarAngleAxis
-                                dataKey="subject"
-                                tick={{ fill: '#9ca3af', fontSize: 11 }}
-                              />
+                            <RadarChart data={[
+                              { subject: 'Matched',    value: match.matchedSkills?.length || 0 },
+                              { subject: 'Missing',    value: match.missingSkills?.length || 0 },
+                              { subject: 'Similarity', value: Math.round((match.similarityScore || 0) * 10) },
+                              { subject: 'Overall',    value: Math.round(score / 10) },
+                            ]}>
+                              <PolarGrid stroke="var(--border)" />
+                              <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-2)', fontSize: 11 }} />
                               <Radar
-                                name="Score"
-                                dataKey="value"
-                                stroke="#6366f1"
-                                fill="#6366f1"
-                                fillOpacity={0.3}
+                                name="Score" dataKey="value"
+                                stroke="var(--accent)" fill="var(--accent)"
+                                fillOpacity={0.15} strokeWidth={2}
                               />
                               <Tooltip
-                                contentStyle={{
-                                  background: '#111827',
-                                  border: '1px solid #374151',
-                                  borderRadius: 8,
-                                }}
-                                labelStyle={{ color: '#e5e7eb' }}
+                                contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
+                                labelStyle={{ color: 'var(--text)' }}
+                                itemStyle={{ color: 'var(--accent)' }}
                               />
                             </RadarChart>
                           </ResponsiveContainer>
@@ -384,20 +403,23 @@ export default function HistoryPage() {
 
                       {/* Gap analysis */}
                       {(detail?.gapAnalysis || match.gapAnalysis) && (
-                        <div>
-                          <p className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
                             Gap Analysis
                           </p>
-                          <div className="bg-gray-800/50 rounded-xl p-4 text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                          <div
+                            className="rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap"
+                            style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-2)' }}
+                          >
                             {detail?.gapAnalysis || match.gapAnalysis}
                           </div>
                         </div>
                       )}
 
                       {/* Meta */}
-                      <div className="flex gap-6 text-xs text-gray-600 pt-2 border-t border-gray-800">
-                        <span>Similarity score: {(match.similarityScore * 100).toFixed(1)}%</span>
-                        <span>Matched: {new Date(match.createdAt).toLocaleString()}</span>
+                      <div className="flex flex-wrap gap-4 text-xs pt-2 border-t" style={{ color: 'var(--text-3)', borderColor: 'var(--border)' }}>
+                        <span>Similarity: {((match.similarityScore || 0) * 100).toFixed(1)}%</span>
+                        <span>{new Date(match.createdAt).toLocaleString()}</span>
                       </div>
                     </div>
                   )}
