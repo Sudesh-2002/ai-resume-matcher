@@ -3,6 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { Zap, ArrowRight, FileText, Brain, BarChart3 } from 'lucide-react';
+
+const features = [
+  { icon: FileText, text: 'PDF resume parsing with LLM extraction' },
+  { icon: Brain,    text: 'Semantic matching via vector embeddings' },
+  { icon: BarChart3,text: 'Gap analysis with actionable career advice' },
+];
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -12,18 +19,10 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      toast.error('Name is required');
-      return;
-    }
-    if (!form.email.includes('@')) {
-      toast.error('Please enter a valid email');
-      return;
-    }
-    if (form.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
+    if (!form.name.trim())         { toast.error('Name is required'); return; }
+    if (!form.email.includes('@')) { toast.error('Enter a valid email'); return; }
+    if (form.password.length < 6)  { toast.error('Password must be at least 6 characters'); return; }
+
     setLoading(true);
     try {
       const res = await register(form);
@@ -37,59 +36,121 @@ export default function RegisterPage() {
     }
   };
 
+  const inputStyle = {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+  };
+
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-gray-900 rounded-2xl p-8 border border-gray-800">
-        <h1 className="text-2xl font-bold text-white mb-2">Create account</h1>
-        <p className="text-gray-400 mb-8 text-sm">AI Resume Matcher</p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm text-gray-400 block mb-1">Name</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-              placeholder="Kasun Kalhara"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm text-gray-400 block mb-1">Email</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm text-gray-400 block mb-1">Password</label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-              placeholder="Min 6 characters"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors"
+    <div className="min-h-screen flex" style={{ background: 'var(--bg)' }}>
+
+      {/* ── Left panel ── */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-[480px] shrink-0 p-12 border-r"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center glow-pulse"
+            style={{ background: 'var(--accent-dim)' }}
           >
-            {loading ? 'Creating account...' : 'Create account'}
-          </button>
-        </form>
-        <p className="text-gray-500 text-sm text-center mt-6">
-          Already have an account?{' '}
-          <Link to="/login" className="text-indigo-400 hover:text-indigo-300">
-            Sign in
-          </Link>
+            <Zap size={16} color="var(--bg)" strokeWidth={2.5} />
+          </div>
+          <span className="font-bold text-sm tracking-wide" style={{ color: 'var(--text)' }}>
+            AI Resume Matcher
+          </span>
+        </div>
+
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: 'var(--accent)' }}>
+              Free to use
+            </p>
+            <h1 className="text-4xl font-bold leading-tight" style={{ color: 'var(--text)' }}>
+              Stop guessing. Start matching.
+            </h1>
+          </div>
+          <p className="text-base leading-relaxed" style={{ color: 'var(--text-2)' }}>
+            Most candidates apply blind. Get a semantic match score and a personalised gap analysis before you hit submit — so you know exactly what to fix.
+          </p>
+          <ul className="space-y-4">
+            {features.map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-center gap-3">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--accent-glow)', border: '1px solid var(--border2)' }}
+                >
+                  <Icon size={15} style={{ color: 'var(--accent)' }} />
+                </div>
+                <span className="text-sm" style={{ color: 'var(--text-2)' }}>{text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="text-xs" style={{ color: 'var(--text-3)' }}>
+          Built with MongoDB Atlas Vector Search · Groq · HuggingFace
         </p>
+      </div>
+
+      {/* ── Right panel — form ── */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-sm space-y-8">
+
+          <div className="flex items-center gap-2.5 lg:hidden">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-dim)' }}>
+              <Zap size={16} color="var(--bg)" strokeWidth={2.5} />
+            </div>
+            <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>AI Resume Matcher</span>
+          </div>
+
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Create account</h2>
+            <p className="text-sm" style={{ color: 'var(--text-2)' }}>
+              Already have one?{' '}
+              <Link to="/login" className="font-medium" style={{ color: 'var(--accent)' }}>
+                Sign in
+              </Link>
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {[
+              { label: 'Full name', key: 'name', type: 'text', placeholder: 'Sudesh Hansika' },
+              { label: 'Email', key: 'email', type: 'email', placeholder: 'you@example.com' },
+              { label: 'Password', key: 'password', type: 'password', placeholder: 'Min 6 characters' },
+            ].map(({ label, key, type, placeholder }) => (
+              <div key={key} className="space-y-1.5">
+                <label className="text-xs font-medium" style={{ color: 'var(--text-2)' }}>{label}</label>
+                <input
+                  type={type}
+                  value={form[key]}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  placeholder={placeholder}
+                  required
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all"
+                  style={inputStyle}
+                  onFocus={e => e.target.style.borderColor = 'var(--accent-dim)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+              </div>
+            ))}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 mt-2"
+              style={{ background: 'var(--accent)', color: 'var(--bg)' }}
+            >
+              {loading
+                ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                : <ArrowRight size={16} />
+              }
+              {loading ? 'Creating account...' : 'Create account'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
